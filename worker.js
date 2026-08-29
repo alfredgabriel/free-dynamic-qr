@@ -261,19 +261,18 @@ async function loadQRs(){
   for(const qr of qrs){
     const card=document.createElement('div');card.className='qr-card';
     const rurl=location.origin+'/r/'+qr.slug;
-    card.innerHTML=`
-      <div class="qr-thumb"><canvas id="th-${qr.slug}"></canvas></div>
-      <div class="qr-info">
-        <div class="qr-label">${esc(qr.label||qr.slug)}</div>
-        <div class="qr-slug" title="Copiar enlace" onclick="cp('${rurl}')">&#128279; /r/${esc(qr.slug)}</div>
-        <div class="qr-url" title="${esc(qr.url)}">&rarr; ${esc(qr.url)}</div>
-      </div>
-      <div class="qr-scans"><div class="qr-scans-num">${qr.scans||0}</div><div class="qr-scans-label">escaneos</div></div>
-      <div class="qr-actions">
-        <button class="btn btn-ghost btn-sm" onclick="openQR('${qr.slug}','${rurl}')">Ver QR</button>
-        <button class="btn btn-ghost btn-sm" onclick="openEdit('${qr.slug}','${esc(qr.url)}','${esc(qr.label||'')}')">Editar</button>
-        <button class="btn btn-danger btn-sm" onclick="openDel('${qr.slug}')">Borrar</button>
-      </div>`;
+    card.innerHTML='<div class="qr-thumb"><canvas id="th-'+qr.slug+'"></canvas></div>'+
+      '<div class="qr-info">'+
+        '<div class="qr-label">'+esc(qr.label||qr.slug)+'</div>'+
+        '<div class="qr-slug" title="Copiar enlace" onclick="cp(\''+rurl+'\')">&#128279; /r/'+esc(qr.slug)+'</div>'+
+        '<div class="qr-url" title="'+esc(qr.url)+'">&rarr; '+esc(qr.url)+'</div>'+
+      '</div>'+
+      '<div class="qr-scans"><div class="qr-scans-num">'+(qr.scans||0)+'</div><div class="qr-scans-label">escaneos</div></div>'+
+      '<div class="qr-actions">'+
+        '<button class="btn btn-ghost btn-sm" onclick="openQR(\''+qr.slug+'\',\''+rurl+'\')">Ver QR</button>'+
+        '<button class="btn btn-ghost btn-sm" onclick="openEdit(\''+qr.slug+'\',\''+esc(qr.url)+'\',\''+esc(qr.label||'')+'\')">Editar</button>'+
+        '<button class="btn btn-danger btn-sm" onclick="openDel(\''+qr.slug+'\')">Borrar</button>'+
+      '</div>';
     list.appendChild(card);
     QRCode.toCanvas(document.getElementById('th-'+qr.slug),rurl,{width:66,margin:0,color:{dark:'#000',light:'#fff'}});
   }
@@ -471,3 +470,4 @@ export default {
     return json({ error: 'Not found.' }, 404);
   }
 };
+
