@@ -1,473 +1,100 @@
-﻿// ============================================================
-//  free-dynamic-qr — Single Cloudflare Worker
-//  Paste this entire file in the Cloudflare Workers editor.
-//  No GitHub, no CLI, no ZIP needed.
-// ============================================================
-
-const PANEL_HTML = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Free Dynamic QR — Panel</title>
-<meta name="description" content="Gestiona tus QR dinamicos gratuitos autoalojados."/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"><\/script>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a25;--border:#2a2a3a;
-  --accent:#7c6bff;--accent2:#a78bfa;--glow:rgba(124,107,255,.2);
-  --green:#22d3a3;--red:#f87171;--text:#e8e8f0;--text2:#9090a8;
-  --card:rgba(26,26,37,.85);--r:16px;--rs:10px;
-}
-html,body{height:100%}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(124,107,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(124,107,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
-body::after{content:'';position:fixed;top:-200px;left:-200px;width:600px;height:600px;background:radial-gradient(circle,rgba(124,107,255,.1) 0%,transparent 70%);pointer-events:none;z-index:0}
-#app{position:relative;z-index:1;min-height:100vh}
-.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
-.auth-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:48px 40px;width:100%;max-width:420px;backdrop-filter:blur(20px);box-shadow:0 0 60px rgba(124,107,255,.1),0 25px 50px rgba(0,0,0,.5)}
-.logo{display:flex;align-items:center;gap:12px;margin-bottom:32px}
-.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 20px var(--glow)}
-.logo-name{font-size:20px;font-weight:700}
-.logo-sub{font-size:12px;color:var(--text2)}
-.auth-title{font-size:26px;font-weight:700;margin-bottom:8px}
-.auth-sub{color:var(--text2);font-size:14px;margin-bottom:32px;line-height:1.6}
-label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:8px}
-input[type=text],input[type=url],input[type=password]{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:14px 16px;color:var(--text);font-size:15px;font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s}
-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
-.field{margin-bottom:16px}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px 24px;border:none;border-radius:var(--rs);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s;margin-top:4px}
-.btn-primary{background:linear-gradient(135deg,var(--accent),#6d5ce7);color:#fff;box-shadow:0 4px 20px var(--glow)}
-.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px var(--glow)}
-.btn-primary:active{transform:translateY(0)}
-.btn-danger{background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.3);margin-top:0}
-.btn-danger:hover{background:rgba(248,113,113,.22)}
-.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border);margin-top:0}
-.btn-ghost:hover{border-color:var(--accent);color:var(--text)}
-.btn-sm{width:auto;padding:8px 14px;font-size:13px;border-radius:8px}
-.err{color:var(--red);font-size:13px;margin-top:8px;display:none}
-.err.show{display:block}
-.hidden{display:none!important}
-header{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--border);background:rgba(10,10,15,.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100}
-.h-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
-.h-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
-.h-right{display:flex;align-items:center;gap:12px}
-.badge{background:rgba(124,107,255,.12);border:1px solid rgba(124,107,255,.25);color:var(--accent2);padding:4px 12px;border-radius:100px;font-size:12px;font-weight:500}
-main{padding:32px;max-width:1100px;margin:0 auto}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:32px}
-.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:24px;backdrop-filter:blur(10px);transition:border-color .2s}
-.stat:hover{border-color:rgba(124,107,255,.35)}
-.stat-label{font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.stat-value{font-size:30px;font-weight:800;background:linear-gradient(135deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.section{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:28px;backdrop-filter:blur(10px);margin-bottom:28px}
-.section-title{font-size:16px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px}
-.create-form{display:grid;grid-template-columns:1fr 2fr 1fr auto;gap:12px;align-items:end}
-@media(max-width:768px){.create-form{grid-template-columns:1fr}main{padding:16px}header{padding:16px}}
-.qr-list{display:flex;flex-direction:column;gap:14px}
-.qr-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px;backdrop-filter:blur(10px);display:grid;grid-template-columns:auto 1fr auto auto;gap:20px;align-items:center;transition:border-color .2s,transform .2s;animation:fadeIn .3s ease}
-.qr-card:hover{border-color:rgba(124,107,255,.3);transform:translateY(-1px)}
-.qr-thumb{width:78px;height:78px;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:6px;flex-shrink:0}
-.qr-thumb canvas{width:66px!important;height:66px!important}
-.qr-label{font-weight:600;font-size:16px;margin-bottom:4px}
-.qr-slug{font-size:12px;color:var(--accent2);background:rgba(124,107,255,.1);border:1px solid rgba(124,107,255,.2);padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:8px;cursor:pointer;transition:background .2s}
-.qr-slug:hover{background:rgba(124,107,255,.2)}
-.qr-url{font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:380px}
-.qr-scans{text-align:center;flex-shrink:0}
-.qr-scans-num{font-size:26px;font-weight:800;color:var(--green)}
-.qr-scans-label{font-size:11px;color:var(--text2)}
-.qr-actions{display:flex;flex-direction:column;gap:7px;flex-shrink:0}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s}
-.modal-overlay.open{opacity:1;pointer-events:all}
-.modal{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:32px;width:100%;max-width:500px;box-shadow:0 25px 60px rgba(0,0,0,.6);transform:scale(.95);transition:transform .2s}
-.modal-overlay.open .modal{transform:scale(1)}
-.modal-title{font-size:20px;font-weight:700;margin-bottom:6px}
-.modal-sub{color:var(--text2);font-size:14px;margin-bottom:22px}
-.modal-actions{display:flex;gap:10px;margin-top:20px}
-.qr-preview{display:flex;justify-content:center;margin:20px 0;background:#fff;border-radius:12px;padding:16px}
-.empty{text-align:center;padding:56px 24px;color:var(--text2)}
-.empty-icon{font-size:56px;margin-bottom:16px}
-.empty-title{font-size:19px;font-weight:600;color:var(--text);margin-bottom:8px}
-.toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:13px 20px;font-size:14px;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.4);transform:translateY(100px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:2000}
-.toast.show{transform:translateY(0);opacity:1}
-.toast.success{border-color:rgba(34,211,163,.4);color:var(--green)}
-.toast.error{border-color:rgba(248,113,113,.4);color:var(--red)}
-.spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
-.btn.loading .spin{display:block}
-.btn.loading .btn-text{display:none}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-</style>
-</head>
-<body>
-<div id="app">
-
-<!-- SETUP -->
-<div id="s-setup" class="auth-screen">
-  <div class="auth-card">
-    <div class="logo"><div class="logo-icon">&#11042;</div><div><div class="logo-name">Free Dynamic QR</div><div class="logo-sub">autoalojado en Cloudflare</div></div></div>
-    <h1 class="auth-title">Bienvenido &#127881;</h1>
-    <p class="auth-sub">Primera vez aqui. Crea una contrasena para proteger tu panel.</p>
-    <div class="field"><label for="s-pw">Contrasena (min. 6 caracteres)</label><input id="s-pw" type="password" placeholder="Tu contrasena..." autocomplete="new-password"/></div>
-    <div class="field"><label for="s-pw2">Confirmar contrasena</label><input id="s-pw2" type="password" placeholder="Repite..." autocomplete="new-password"/></div>
-    <button id="s-btn" class="btn btn-primary" onclick="doSetup()"><div class="spin"></div><span class="btn-text">Crear y entrar &rarr;</span></button>
-    <div id="s-err" class="err"></div>
-  </div>
-</div>
-
-<!-- LOGIN -->
-<div id="s-login" class="auth-screen hidden">
-  <div class="auth-card">
-    <div class="logo"><div class="logo-icon">&#11042;</div><div><div class="logo-name">Free Dynamic QR</div><div class="logo-sub">autoalojado en Cloudflare</div></div></div>
-    <h1 class="auth-title">Acceder al panel</h1>
-    <p class="auth-sub">Introduce tu contrasena para gestionar tus QRs.</p>
-    <div class="field"><label for="l-pw">Contrasena</label><input id="l-pw" type="password" placeholder="Tu contrasena..." autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
-    <button id="l-btn" class="btn btn-primary" onclick="doLogin()"><div class="spin"></div><span class="btn-text">Entrar &rarr;</span></button>
-    <div id="l-err" class="err"></div>
-  </div>
-</div>
-
-<!-- PANEL -->
-<div id="s-panel" class="hidden">
-  <header>
-    <div class="h-logo"><div class="h-icon">&#11042;</div>Free Dynamic QR</div>
-    <div class="h-right"><span class="badge">&#10003; Cloudflare Free</span><button class="btn btn-ghost btn-sm" onclick="logout()">Salir</button></div>
-  </header>
-  <main>
-    <div class="stats">
-      <div class="stat"><div class="stat-label">Total QRs</div><div class="stat-value" id="st-total">0</div></div>
-      <div class="stat"><div class="stat-label">Escaneos totales</div><div class="stat-value" id="st-scans">0</div></div>
-      <div class="stat"><div class="stat-label">Ultimo escaneo</div><div class="stat-value" id="st-last" style="font-size:17px;margin-top:6px">&mdash;</div></div>
-    </div>
-    <div class="section">
-      <div class="section-title">&#10133; Crear nuevo QR</div>
-      <div class="create-form">
-        <div class="field" style="margin:0"><label for="n-slug">Slug (identificador)</label><input id="n-slug" type="text" placeholder="ej: portfolio"/></div>
-        <div class="field" style="margin:0"><label for="n-url">URL de destino</label><input id="n-url" type="url" placeholder="https://alfredgabriel.com"/></div>
-        <div class="field" style="margin:0"><label for="n-label">Nombre (opcional)</label><input id="n-label" type="text" placeholder="Mi portfolio"/></div>
-        <button id="c-btn" class="btn btn-primary btn-sm" onclick="createQR()" style="height:48px;align-self:end"><div class="spin"></div><span class="btn-text">Crear QR</span></button>
-      </div>
-    </div>
-    <div class="section-title" style="margin-bottom:16px">&#128203; Mis codigos QR</div>
-    <div id="qr-list" class="qr-list"></div>
-  </main>
-</div>
-
-<!-- MODAL EDIT -->
-<div id="m-edit" class="modal-overlay" onclick="if(event.target===this)closeM('m-edit')">
-  <div class="modal">
-    <div class="modal-title">&#9998; Editar QR</div>
-    <div class="modal-sub" id="m-edit-slug"></div>
-    <div class="field"><label for="e-url">Nueva URL de destino</label><input id="e-url" type="url" placeholder="https://..."/></div>
-    <div class="field"><label for="e-label">Nombre</label><input id="e-label" type="text" placeholder="Nombre del QR"/></div>
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="saveEdit()" id="e-btn"><div class="spin"></div><span class="btn-text">Guardar</span></button>
-      <button class="btn btn-ghost" onclick="closeM('m-edit')">Cancelar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL QR IMAGE -->
-<div id="m-qr" class="modal-overlay" onclick="if(event.target===this)closeM('m-qr')">
-  <div class="modal">
-    <div class="modal-title">&#128247; Tu codigo QR</div>
-    <div class="modal-sub" id="m-qr-url"></div>
-    <div class="qr-preview"><canvas id="m-qr-canvas"></canvas></div>
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="dlQR()">&#11015; Descargar PNG</button>
-      <button class="btn btn-ghost" onclick="closeM('m-qr')">Cerrar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL DELETE -->
-<div id="m-del" class="modal-overlay" onclick="if(event.target===this)closeM('m-del')">
-  <div class="modal">
-    <div class="modal-title">&#128465; Eliminar QR</div>
-    <div class="modal-sub" id="m-del-msg"></div>
-    <div class="modal-actions">
-      <button class="btn btn-danger" onclick="confirmDel()" id="d-btn"><div class="spin"></div><span class="btn-text">Si, eliminar</span></button>
-      <button class="btn btn-ghost" onclick="closeM('m-del')">Cancelar</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast" class="toast"></div>
-</div>
-
-<script>
-let token=sessionStorage.getItem('qr_t')||'',editSlug='',delSlug='';
-
-async function init(){
-  try{
-    const r=await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({__check:true})});
-    const d=await r.json();
-    if(d.notSetup){show('s-setup')}
-    else if(token){
-      const t=await fetch('/api/qrs',{headers:{Authorization:'Bearer '+token}});
-      if(t.ok){show('s-panel');loadQRs()}else{token='';sessionStorage.removeItem('qr_t');show('s-login')}
-    }else{show('s-login')}
-  }catch{show('s-login')}
-}
-
-function show(id){
-  ['s-setup','s-login','s-panel'].forEach(s=>document.getElementById(s).classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
-}
-
-async function doSetup(){
-  const btn=document.getElementById('s-btn'),err=document.getElementById('s-err');
-  const p1=document.getElementById('s-pw').value,p2=document.getElementById('s-pw2').value;
-  err.classList.remove('show');
-  if(p1.length<6){err.textContent='Minimo 6 caracteres.';err.classList.add('show');return}
-  if(p1!==p2){err.textContent='Las contrasenas no coinciden.';err.classList.add('show');return}
-  btn.classList.add('loading');
-  const r=await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:p1})});
-  const d=await r.json();btn.classList.remove('loading');
-  if(d.ok){await loginWith(p1)}else{err.textContent=d.error||'Error.';err.classList.add('show')}
-}
-
-async function doLogin(){await loginWith(document.getElementById('l-pw').value)}
-
-async function loginWith(pw){
-  const btn=document.getElementById('l-btn')||document.getElementById('s-btn');
-  const err=document.getElementById('l-err')||document.getElementById('s-err');
-  if(btn)btn.classList.add('loading');
-  const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
-  const d=await r.json();
-  if(btn)btn.classList.remove('loading');
-  if(d.token){token=d.token;sessionStorage.setItem('qr_t',token);show('s-panel');loadQRs()}
-  else if(err){err.textContent=d.error||'Contrasena incorrecta.';err.classList.add('show')}
-}
-
-function logout(){token='';sessionStorage.removeItem('qr_t');show('s-login')}
-
-async function loadQRs(){
-  const r=await fetch('/api/qrs',{headers:{Authorization:'Bearer '+token}});
-  const qrs=await r.json();
-  const list=document.getElementById('qr-list');
-  if(!Array.isArray(qrs)||qrs.length===0){
-    list.innerHTML='<div class="empty"><div class="empty-icon">&#11042;</div><div class="empty-title">Sin QRs todavia</div><p>Crea tu primer QR dinamico arriba.</p></div>';
-    document.getElementById('st-total').textContent='0';document.getElementById('st-scans').textContent='0';document.getElementById('st-last').textContent='&mdash;';return;
-  }
-  let ts=0,last=null;
-  qrs.forEach(q=>{ts+=q.scans||0;if(q.lastScan&&(!last||q.lastScan>last))last=q.lastScan});
-  document.getElementById('st-total').textContent=qrs.length;
-  document.getElementById('st-scans').textContent=ts;
-  document.getElementById('st-last').textContent=last?new Date(last).toLocaleDateString('es',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'&mdash;';
-  list.innerHTML='';
-  for(const qr of qrs){
-    const card=document.createElement('div');card.className='qr-card';
-    const rurl=location.origin+'/r/'+qr.slug;
-    card.innerHTML='<div class="qr-thumb"><canvas id="th-'+qr.slug+'"></canvas></div>'+
-      '<div class="qr-info">'+
-        '<div class="qr-label">'+esc(qr.label||qr.slug)+'</div>'+
-        '<div class="qr-slug" title="Copiar enlace" onclick="cp(\''+rurl+'\')">&#128279; /r/'+esc(qr.slug)+'</div>'+
-        '<div class="qr-url" title="'+esc(qr.url)+'">&rarr; '+esc(qr.url)+'</div>'+
-      '</div>'+
-      '<div class="qr-scans"><div class="qr-scans-num">'+(qr.scans||0)+'</div><div class="qr-scans-label">escaneos</div></div>'+
-      '<div class="qr-actions">'+
-        '<button class="btn btn-ghost btn-sm" onclick="openQR(\''+qr.slug+'\',\''+rurl+'\')">Ver QR</button>'+
-        '<button class="btn btn-ghost btn-sm" onclick="openEdit(\''+qr.slug+'\',\''+esc(qr.url)+'\',\''+esc(qr.label||'')+'\')">Editar</button>'+
-        '<button class="btn btn-danger btn-sm" onclick="openDel(\''+qr.slug+'\')">Borrar</button>'+
-      '</div>';
-    list.appendChild(card);
-    QRCode.toCanvas(document.getElementById('th-'+qr.slug),rurl,{width:66,margin:0,color:{dark:'#000',light:'#fff'}});
-  }
-}
-
-async function createQR(){
-  const slug=document.getElementById('n-slug').value.trim();
-  const url=document.getElementById('n-url').value.trim();
-  const label=document.getElementById('n-label').value.trim();
-  if(!slug){toast('El slug es obligatorio','error');return}
-  if(!url||!url.startsWith('http')){toast('URL invalida','error');return}
-  const btn=document.getElementById('c-btn');btn.classList.add('loading');
-  const r=await fetch('/api/qrs',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({slug,url,label})});
-  const d=await r.json();btn.classList.remove('loading');
-  if(r.ok){document.getElementById('n-slug').value='';document.getElementById('n-url').value='';document.getElementById('n-label').value='';toast('QR creado!','success');loadQRs()}
-  else toast(d.error||'Error al crear','error');
-}
-
-function openEdit(slug,url,label){editSlug=slug;document.getElementById('m-edit-slug').textContent='/r/'+slug;document.getElementById('e-url').value=url;document.getElementById('e-label').value=label;openM('m-edit')}
-async function saveEdit(){
-  const btn=document.getElementById('e-btn');btn.classList.add('loading');
-  const r=await fetch('/api/qrs/'+editSlug,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({url:document.getElementById('e-url').value,label:document.getElementById('e-label').value})});
-  btn.classList.remove('loading');
-  if(r.ok){closeM('m-edit');toast('QR actualizado!','success');loadQRs()}else toast('Error al guardar','error');
-}
-
-function openDel(slug){delSlug=slug;document.getElementById('m-del-msg').textContent='Eliminar el QR /r/'+slug+'? Esta accion no se puede deshacer.';openM('m-del')}
-async function confirmDel(){
-  const btn=document.getElementById('d-btn');btn.classList.add('loading');
-  await fetch('/api/qrs/'+delSlug,{method:'DELETE',headers:{Authorization:'Bearer '+token}});
-  btn.classList.remove('loading');closeM('m-del');toast('QR eliminado','success');loadQRs();
-}
-
-function openQR(slug,url){
-  document.getElementById('m-qr-url').textContent=url;
-  document.getElementById('m-qr').dataset.slug=slug;
-  QRCode.toCanvas(document.getElementById('m-qr-canvas'),url,{width:280,margin:2,color:{dark:'#000',light:'#fff'}});
-  openM('m-qr');
-}
-function dlQR(){const c=document.getElementById('m-qr-canvas'),s=document.getElementById('m-qr').dataset.slug,a=document.createElement('a');a.download='qr-'+s+'.png';a.href=c.toDataURL('image/png');a.click()}
-
-function openM(id){document.getElementById(id).classList.add('open')}
-function closeM(id){document.getElementById(id).classList.remove('open')}
-function cp(t){navigator.clipboard.writeText(t).then(()=>toast('Enlace copiado!','success'))}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
-let _tt;function toast(msg,type='success'){const t=document.getElementById('toast');t.textContent=(type==='success'?'+ ':'x ')+msg;t.className='toast '+type+' show';clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),3000)}
-
-init();
-<\/script>
-</body>
-</html>`;
-
-// ── CRYPTO HELPERS ────────────────────────────────────────────────────────────
+// free-dynamic-qr — Cloudflare Worker
+const PANEL_HTML = "﻿<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <title>Free Dynamic QR — Panel</title>\n  <meta name=\"description\" content=\"Gestiona tus códigos QR dinámicos gratuitos autoalojados en Cloudflare.\" />\n  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\" />\n  <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\" />\n  <script src=\"https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js\"></script>\n  <style>\n    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n\n    :root {\n      --bg: #0a0a0f;\n      --bg2: #111118;\n      --bg3: #1a1a25;\n      --border: #2a2a3a;\n      --accent: #7c6bff;\n      --accent2: #a78bfa;\n      --accent-glow: rgba(124,107,255,0.25);\n      --green: #22d3a3;\n      --red: #f87171;\n      --yellow: #fbbf24;\n      --text: #e8e8f0;\n      --text2: #9090a8;\n      --card-bg: rgba(26,26,37,0.8);\n      --radius: 16px;\n      --radius-sm: 10px;\n    }\n\n    html, body { height: 100%; }\n\n    body {\n      font-family: 'Inter', system-ui, sans-serif;\n      background: var(--bg);\n      color: var(--text);\n      min-height: 100vh;\n      overflow-x: hidden;\n    }\n\n    /* Background grid */\n    body::before {\n      content: '';\n      position: fixed;\n      inset: 0;\n      background-image:\n        linear-gradient(rgba(124,107,255,0.03) 1px, transparent 1px),\n        linear-gradient(90deg, rgba(124,107,255,0.03) 1px, transparent 1px);\n      background-size: 40px 40px;\n      pointer-events: none;\n      z-index: 0;\n    }\n\n    /* Glow orbs */\n    body::after {\n      content: '';\n      position: fixed;\n      top: -200px; left: -200px;\n      width: 600px; height: 600px;\n      background: radial-gradient(circle, rgba(124,107,255,0.12) 0%, transparent 70%);\n      pointer-events: none;\n      z-index: 0;\n    }\n\n    #app { position: relative; z-index: 1; min-height: 100vh; }\n\n    /* ── AUTH SCREENS ─────────────────────────────────── */\n    .auth-screen {\n      display: flex; align-items: center; justify-content: center;\n      min-height: 100vh; padding: 24px;\n    }\n\n    .auth-card {\n      background: var(--card-bg);\n      border: 1px solid var(--border);\n      border-radius: 24px;\n      padding: 48px 40px;\n      width: 100%; max-width: 420px;\n      backdrop-filter: blur(20px);\n      box-shadow: 0 0 60px rgba(124,107,255,0.1), 0 25px 50px rgba(0,0,0,0.5);\n    }\n\n    .logo {\n      display: flex; align-items: center; gap: 12px;\n      margin-bottom: 32px;\n    }\n\n    .logo-icon {\n      width: 48px; height: 48px;\n      background: linear-gradient(135deg, var(--accent), var(--accent2));\n      border-radius: 14px;\n      display: flex; align-items: center; justify-content: center;\n      font-size: 22px;\n      box-shadow: 0 0 20px var(--accent-glow);\n    }\n\n    .logo-text { font-size: 20px; font-weight: 700; }\n    .logo-sub { font-size: 12px; color: var(--text2); font-weight: 400; }\n\n    .auth-title { font-size: 26px; font-weight: 700; margin-bottom: 8px; }\n    .auth-subtitle { color: var(--text2); font-size: 14px; margin-bottom: 32px; line-height: 1.5; }\n\n    label { display: block; font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 8px; }\n\n    input[type=\"text\"], input[type=\"url\"], input[type=\"password\"] {\n      width: 100%;\n      background: var(--bg3);\n      border: 1px solid var(--border);\n      border-radius: var(--radius-sm);\n      padding: 14px 16px;\n      color: var(--text);\n      font-size: 15px;\n      font-family: inherit;\n      outline: none;\n      transition: border-color 0.2s, box-shadow 0.2s;\n    }\n    input:focus {\n      border-color: var(--accent);\n      box-shadow: 0 0 0 3px var(--accent-glow);\n    }\n\n    .btn {\n      display: flex; align-items: center; justify-content: center; gap: 8px;\n      width: 100%;\n      padding: 15px 24px;\n      border: none; border-radius: var(--radius-sm);\n      font-size: 15px; font-weight: 600; font-family: inherit;\n      cursor: pointer;\n      transition: all 0.2s;\n      margin-top: 12px;\n    }\n\n    .btn-primary {\n      background: linear-gradient(135deg, var(--accent), #6d5ce7);\n      color: #fff;\n      box-shadow: 0 4px 20px var(--accent-glow);\n    }\n    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px var(--accent-glow); }\n    .btn-primary:active { transform: translateY(0); }\n\n    .btn-danger { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }\n    .btn-danger:hover { background: rgba(248,113,113,0.25); }\n\n    .btn-ghost { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); margin-top: 0; }\n    .btn-ghost:hover { border-color: var(--accent); color: var(--text); }\n\n    .btn-sm { width: auto; padding: 8px 16px; font-size: 13px; margin-top: 0; border-radius: 8px; }\n\n    .error-msg { color: var(--red); font-size: 13px; margin-top: 10px; display: none; }\n    .error-msg.show { display: block; }\n\n    /* ── MAIN PANEL ──────────────────────────────────── */\n    .hidden { display: none !important; }\n\n    header {\n      display: flex; align-items: center; justify-content: space-between;\n      padding: 20px 32px;\n      border-bottom: 1px solid var(--border);\n      background: rgba(10,10,15,0.8);\n      backdrop-filter: blur(12px);\n      position: sticky; top: 0; z-index: 100;\n    }\n\n    .header-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }\n    .header-logo-icon {\n      width: 36px; height: 36px;\n      background: linear-gradient(135deg, var(--accent), var(--accent2));\n      border-radius: 10px; display: flex; align-items: center; justify-content: center;\n      font-size: 16px;\n    }\n\n    .header-right { display: flex; align-items: center; gap: 12px; }\n    .badge {\n      background: rgba(124,107,255,0.15);\n      border: 1px solid rgba(124,107,255,0.3);\n      color: var(--accent2);\n      padding: 4px 12px; border-radius: 100px;\n      font-size: 12px; font-weight: 500;\n    }\n\n    main { padding: 32px; max-width: 1100px; margin: 0 auto; }\n\n    /* Stats row */\n    .stats-row {\n      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n      gap: 16px; margin-bottom: 32px;\n    }\n\n    .stat-card {\n      background: var(--card-bg);\n      border: 1px solid var(--border);\n      border-radius: var(--radius);\n      padding: 24px;\n      backdrop-filter: blur(10px);\n      transition: border-color 0.2s;\n    }\n    .stat-card:hover { border-color: rgba(124,107,255,0.4); }\n\n    .stat-label { font-size: 12px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }\n    .stat-value { font-size: 32px; font-weight: 800; background: linear-gradient(135deg, var(--text), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }\n\n    /* Create form */\n    .create-section {\n      background: var(--card-bg);\n      border: 1px solid var(--border);\n      border-radius: var(--radius);\n      padding: 28px;\n      backdrop-filter: blur(10px);\n      margin-bottom: 32px;\n    }\n\n    .section-title {\n      font-size: 16px; font-weight: 700; margin-bottom: 20px;\n      display: flex; align-items: center; gap: 8px;\n    }\n\n    .create-form { display: grid; grid-template-columns: 1fr 2fr 1fr auto; gap: 12px; align-items: end; }\n\n    .field { display: flex; flex-direction: column; gap: 6px; }\n\n    @media (max-width: 768px) {\n      .create-form { grid-template-columns: 1fr; }\n      main { padding: 16px; }\n      header { padding: 16px; }\n    }\n\n    /* QR List */\n    .qr-list { display: flex; flex-direction: column; gap: 16px; }\n\n    .qr-card {\n      background: var(--card-bg);\n      border: 1px solid var(--border);\n      border-radius: var(--radius);\n      padding: 24px;\n      backdrop-filter: blur(10px);\n      display: grid;\n      grid-template-columns: auto 1fr auto auto;\n      gap: 20px; align-items: center;\n      transition: border-color 0.2s, transform 0.2s;\n    }\n    .qr-card:hover { border-color: rgba(124,107,255,0.3); transform: translateY(-1px); }\n\n    .qr-thumb {\n      width: 80px; height: 80px;\n      background: #fff;\n      border-radius: 10px;\n      display: flex; align-items: center; justify-content: center;\n      padding: 6px;\n      flex-shrink: 0;\n    }\n\n    .qr-thumb canvas { width: 68px !important; height: 68px !important; }\n\n    .qr-info { min-width: 0; }\n    .qr-label { font-weight: 600; font-size: 16px; margin-bottom: 4px; }\n    .qr-slug {\n      font-size: 12px; color: var(--accent2);\n      background: rgba(124,107,255,0.1);\n      border: 1px solid rgba(124,107,255,0.2);\n      padding: 2px 8px; border-radius: 6px;\n      display: inline-block; margin-bottom: 8px;\n      cursor: pointer; transition: background 0.2s;\n    }\n    .qr-slug:hover { background: rgba(124,107,255,0.2); }\n    .qr-url { font-size: 13px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }\n\n    .qr-scans {\n      text-align: center; flex-shrink: 0;\n    }\n    .qr-scans-num { font-size: 28px; font-weight: 800; color: var(--green); }\n    .qr-scans-label { font-size: 11px; color: var(--text2); }\n\n    .qr-actions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }\n\n    /* Modal */\n    .modal-overlay {\n      position: fixed; inset: 0;\n      background: rgba(0,0,0,0.7);\n      backdrop-filter: blur(6px);\n      display: flex; align-items: center; justify-content: center;\n      z-index: 1000; padding: 24px;\n      opacity: 0; pointer-events: none;\n      transition: opacity 0.2s;\n    }\n    .modal-overlay.open { opacity: 1; pointer-events: all; }\n\n    .modal {\n      background: var(--bg2);\n      border: 1px solid var(--border);\n      border-radius: 20px;\n      padding: 32px;\n      width: 100%; max-width: 520px;\n      box-shadow: 0 25px 60px rgba(0,0,0,0.6), 0 0 40px rgba(124,107,255,0.1);\n      transform: scale(0.95);\n      transition: transform 0.2s;\n    }\n    .modal-overlay.open .modal { transform: scale(1); }\n\n    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }\n    .modal-sub { color: var(--text2); font-size: 14px; margin-bottom: 24px; }\n    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }\n    .modal-actions .btn { margin-top: 0; }\n\n    /* QR Export modal */\n    .qr-export-canvas {\n      display: flex; justify-content: center; margin: 20px 0;\n      background: #fff; border-radius: 12px; padding: 16px;\n    }\n\n    .empty-state {\n      text-align: center; padding: 64px 24px;\n      color: var(--text2);\n    }\n    .empty-state-icon { font-size: 64px; margin-bottom: 16px; }\n    .empty-state-title { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 8px; }\n\n    .toast {\n      position: fixed; bottom: 24px; right: 24px;\n      background: var(--bg3); border: 1px solid var(--border);\n      border-radius: 12px; padding: 14px 20px;\n      font-size: 14px; font-weight: 500;\n      box-shadow: 0 10px 30px rgba(0,0,0,0.4);\n      transform: translateY(100px); opacity: 0;\n      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);\n      z-index: 2000; max-width: 300px;\n    }\n    .toast.show { transform: translateY(0); opacity: 1; }\n    .toast.success { border-color: rgba(34,211,163,0.4); color: var(--green); }\n    .toast.error { border-color: rgba(248,113,113,0.4); color: var(--red); }\n\n    .spinner {\n      width: 18px; height: 18px;\n      border: 2px solid rgba(255,255,255,0.2);\n      border-top-color: #fff;\n      border-radius: 50%;\n      animation: spin 0.6s linear infinite;\n      display: none;\n    }\n    .btn.loading .spinner { display: block; }\n    .btn.loading .btn-text { display: none; }\n\n    @keyframes spin { to { transform: rotate(360deg); } }\n    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }\n    .qr-card { animation: fadeIn 0.3s ease; }\n  </style>\n</head>\n<body>\n<div id=\"app\">\n\n  <!-- SETUP SCREEN -->\n  <div id=\"screen-setup\" class=\"auth-screen\">\n    <div class=\"auth-card\">\n      <div class=\"logo\">\n        <div class=\"logo-icon\">⬡</div>\n        <div><div class=\"logo-text\">Free Dynamic QR</div><div class=\"logo-sub\">autoalojado en Cloudflare</div></div>\n      </div>\n      <h1 class=\"auth-title\">¡Bienvenido! 🎉</h1>\n      <p class=\"auth-subtitle\">Es tu primera vez aquí. Crea una contraseña para proteger tu panel de gestión.</p>\n      <div class=\"field\">\n        <label for=\"setup-password\">Contraseña (mínimo 6 caracteres)</label>\n        <input id=\"setup-password\" type=\"password\" placeholder=\"Tu contraseña segura...\" autocomplete=\"new-password\" />\n      </div>\n      <div class=\"field\" style=\"margin-top:12px\">\n        <label for=\"setup-password2\">Confirmar contraseña</label>\n        <input id=\"setup-password2\" type=\"password\" placeholder=\"Repite la contraseña...\" autocomplete=\"new-password\" />\n      </div>\n      <button id=\"setup-btn\" class=\"btn btn-primary\" onclick=\"doSetup()\">\n        <div class=\"spinner\"></div>\n        <span class=\"btn-text\">Crear contraseña y entrar →</span>\n      </button>\n      <div id=\"setup-error\" class=\"error-msg\"></div>\n    </div>\n  </div>\n\n  <!-- LOGIN SCREEN -->\n  <div id=\"screen-login\" class=\"auth-screen hidden\">\n    <div class=\"auth-card\">\n      <div class=\"logo\">\n        <div class=\"logo-icon\">⬡</div>\n        <div><div class=\"logo-text\">Free Dynamic QR</div><div class=\"logo-sub\">autoalojado en Cloudflare</div></div>\n      </div>\n      <h1 class=\"auth-title\">Acceder al panel</h1>\n      <p class=\"auth-subtitle\">Introduce tu contraseña para gestionar tus códigos QR.</p>\n      <div class=\"field\">\n        <label for=\"login-password\">Contraseña</label>\n        <input id=\"login-password\" type=\"password\" placeholder=\"Tu contraseña...\" autocomplete=\"current-password\"\n          onkeydown=\"if(event.key==='Enter') doLogin()\" />\n      </div>\n      <button id=\"login-btn\" class=\"btn btn-primary\" onclick=\"doLogin()\">\n        <div class=\"spinner\"></div>\n        <span class=\"btn-text\">Entrar →</span>\n      </button>\n      <div id=\"login-error\" class=\"error-msg\"></div>\n    </div>\n  </div>\n\n  <!-- MAIN PANEL -->\n  <div id=\"screen-panel\" class=\"hidden\">\n    <header>\n      <div class=\"header-logo\">\n        <div class=\"header-logo-icon\">⬡</div>\n        Free Dynamic QR\n      </div>\n      <div class=\"header-right\">\n        <span class=\"badge\">✓ Cloudflare Free</span>\n        <button class=\"btn btn-ghost btn-sm\" onclick=\"logout()\">Salir</button>\n      </div>\n    </header>\n\n    <main>\n      <!-- Stats -->\n      <div class=\"stats-row\">\n        <div class=\"stat-card\">\n          <div class=\"stat-label\">Total QRs</div>\n          <div class=\"stat-value\" id=\"stat-total\">0</div>\n        </div>\n        <div class=\"stat-card\">\n          <div class=\"stat-label\">Escaneos totales</div>\n          <div class=\"stat-value\" id=\"stat-scans\">0</div>\n        </div>\n        <div class=\"stat-card\">\n          <div class=\"stat-label\">Último escaneo</div>\n          <div class=\"stat-value\" id=\"stat-last\" style=\"font-size:18px; margin-top:6px;\">—</div>\n        </div>\n      </div>\n\n      <!-- Create QR -->\n      <div class=\"create-section\">\n        <div class=\"section-title\">➕ Crear nuevo QR</div>\n        <div class=\"create-form\">\n          <div class=\"field\">\n            <label for=\"new-slug\">Código (slug)</label>\n            <input id=\"new-slug\" type=\"text\" placeholder=\"ej: portfolio\" />\n          </div>\n          <div class=\"field\">\n            <label for=\"new-url\">URL de destino</label>\n            <input id=\"new-url\" type=\"url\" placeholder=\"https://alfredgabriel.com\" />\n          </div>\n          <div class=\"field\">\n            <label for=\"new-label\">Nombre (opcional)</label>\n            <input id=\"new-label\" type=\"text\" placeholder=\"Mi portfolio\" />\n          </div>\n          <button class=\"btn btn-primary btn-sm\" onclick=\"createQR()\" id=\"create-btn\" style=\"height:48px; align-self:end;\">\n            <div class=\"spinner\"></div>\n            <span class=\"btn-text\">Crear QR</span>\n          </button>\n        </div>\n      </div>\n\n      <!-- QR List -->\n      <div class=\"section-title\">📋 Mis códigos QR</div>\n      <div id=\"qr-list\" class=\"qr-list\">\n        <div class=\"empty-state\">\n          <div class=\"spinner\" style=\"display:block; margin:0 auto 16px; width:32px; height:32px; border-width:3px;\"></div>\n          Cargando...\n        </div>\n      </div>\n    </main>\n  </div>\n\n  <!-- EDIT MODAL -->\n  <div id=\"modal-edit\" class=\"modal-overlay\" onclick=\"if(event.target===this) closeModal('modal-edit')\">\n    <div class=\"modal\">\n      <div class=\"modal-title\">✏️ Editar QR</div>\n      <div class=\"modal-sub\" id=\"edit-modal-slug\"></div>\n      <div class=\"field\" style=\"margin-bottom:12px\">\n        <label for=\"edit-url\">Nueva URL de destino</label>\n        <input id=\"edit-url\" type=\"url\" placeholder=\"https://...\" />\n      </div>\n      <div class=\"field\">\n        <label for=\"edit-label\">Nombre</label>\n        <input id=\"edit-label\" type=\"text\" placeholder=\"Nombre del QR\" />\n      </div>\n      <div class=\"modal-actions\">\n        <button class=\"btn btn-primary\" onclick=\"saveEdit()\" id=\"save-btn\">\n          <div class=\"spinner\"></div>\n          <span class=\"btn-text\">Guardar cambios</span>\n        </button>\n        <button class=\"btn btn-ghost\" onclick=\"closeModal('modal-edit')\">Cancelar</button>\n      </div>\n    </div>\n  </div>\n\n  <!-- QR IMAGE MODAL -->\n  <div id=\"modal-qr\" class=\"modal-overlay\" onclick=\"if(event.target===this) closeModal('modal-qr')\">\n    <div class=\"modal\">\n      <div class=\"modal-title\">📷 Tu código QR</div>\n      <div class=\"modal-sub\" id=\"qr-modal-url\"></div>\n      <div class=\"qr-export-canvas\">\n        <canvas id=\"modal-qr-canvas\"></canvas>\n      </div>\n      <div class=\"modal-actions\">\n        <button class=\"btn btn-primary\" onclick=\"downloadQR()\">⬇️ Descargar PNG</button>\n        <button class=\"btn btn-ghost\" onclick=\"closeModal('modal-qr')\">Cerrar</button>\n      </div>\n    </div>\n  </div>\n\n  <!-- DELETE CONFIRM MODAL -->\n  <div id=\"modal-delete\" class=\"modal-overlay\" onclick=\"if(event.target===this) closeModal('modal-delete')\">\n    <div class=\"modal\">\n      <div class=\"modal-title\">🗑️ Eliminar QR</div>\n      <div class=\"modal-sub\" id=\"delete-modal-msg\"></div>\n      <div class=\"modal-actions\">\n        <button class=\"btn btn-danger\" onclick=\"confirmDelete()\" id=\"delete-confirm-btn\">\n          <div class=\"spinner\"></div>\n          <span class=\"btn-text\">Sí, eliminar</span>\n        </button>\n        <button class=\"btn btn-ghost\" onclick=\"closeModal('modal-delete')\">Cancelar</button>\n      </div>\n    </div>\n  </div>\n\n  <div id=\"toast\" class=\"toast\"></div>\n</div>\n\n<script>\n  let token = sessionStorage.getItem('qr_token') || '';\n  let editingSlug = '';\n  let deletingSlug = '';\n\n  // ── INIT ──────────────────────────────────────────────────────────────────\n  async function init() {\n    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: '__check__' }) });\n    const data = await res.json();\n\n    if (data.error === 'Not set up yet.') {\n      show('screen-setup');\n    } else if (token) {\n      // Try using existing token\n      const test = await fetch('/api/qrs', { headers: { Authorization: 'Bearer ' + token } });\n      if (test.ok) { show('screen-panel'); loadQRs(); }\n      else { token = ''; sessionStorage.removeItem('qr_token'); show('screen-login'); }\n    } else {\n      show('screen-login');\n    }\n  }\n\n  function show(id) {\n    ['screen-setup','screen-login','screen-panel'].forEach(s => document.getElementById(s).classList.add('hidden'));\n    document.getElementById(id).classList.remove('hidden');\n  }\n\n  // ── SETUP ─────────────────────────────────────────────────────────────────\n  async function doSetup() {\n    const btn = document.getElementById('setup-btn');\n    const err = document.getElementById('setup-error');\n    const p1 = document.getElementById('setup-password').value;\n    const p2 = document.getElementById('setup-password2').value;\n    err.classList.remove('show');\n\n    if (p1.length < 6) { err.textContent = 'La contraseña debe tener al menos 6 caracteres.'; err.classList.add('show'); return; }\n    if (p1 !== p2) { err.textContent = 'Las contraseñas no coinciden.'; err.classList.add('show'); return; }\n\n    btn.classList.add('loading');\n    const res = await fetch('/api/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: p1 }) });\n    const data = await res.json();\n    btn.classList.remove('loading');\n\n    if (data.ok) { await doLoginWithPassword(p1); }\n    else { err.textContent = data.error || 'Error al configurar.'; err.classList.add('show'); }\n  }\n\n  // ── LOGIN ─────────────────────────────────────────────────────────────────\n  async function doLogin() {\n    const password = document.getElementById('login-password').value;\n    await doLoginWithPassword(password);\n  }\n\n  async function doLoginWithPassword(password) {\n    const btn = document.getElementById('login-btn') || document.getElementById('setup-btn');\n    const err = document.getElementById('login-error') || document.getElementById('setup-error');\n    if (btn) btn.classList.add('loading');\n\n    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });\n    const data = await res.json();\n    if (btn) btn.classList.remove('loading');\n\n    if (data.token) {\n      token = data.token;\n      sessionStorage.setItem('qr_token', token);\n      show('screen-panel');\n      loadQRs();\n    } else if (err) {\n      err.textContent = data.error || 'Error al entrar.';\n      err.classList.add('show');\n    }\n  }\n\n  function logout() {\n    token = '';\n    sessionStorage.removeItem('qr_token');\n    show('screen-login');\n  }\n\n  // ── LOAD QRs ───────────────────────────────────────────────────────────────\n  async function loadQRs() {\n    const res = await fetch('/api/qrs', { headers: { Authorization: 'Bearer ' + token } });\n    const qrs = await res.json();\n\n    const list = document.getElementById('qr-list');\n    if (!Array.isArray(qrs) || qrs.length === 0) {\n      list.innerHTML = '<div class=\"empty-state\"><div class=\"empty-state-icon\">⬡</div><div class=\"empty-state-title\">Sin QRs todavía</div><p>Crea tu primer código QR arriba.</p></div>';\n      document.getElementById('stat-total').textContent = '0';\n      document.getElementById('stat-scans').textContent = '0';\n      document.getElementById('stat-last').textContent = '—';\n      return;\n    }\n\n    let totalScans = 0, lastScan = null;\n    qrs.forEach(q => {\n      totalScans += q.scans || 0;\n      if (q.lastScan && (!lastScan || q.lastScan > lastScan)) lastScan = q.lastScan;\n    });\n\n    document.getElementById('stat-total').textContent = qrs.length;\n    document.getElementById('stat-scans').textContent = totalScans;\n    document.getElementById('stat-last').textContent = lastScan ? new Date(lastScan).toLocaleDateString('es', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';\n\n    list.innerHTML = '';\n    for (const qr of qrs) {\n      const card = document.createElement('div');\n      card.className = 'qr-card';\n      card.id = 'card-${qr.slug}';\n      const redirectUrl = '${location.origin}/r/${qr.slug}';\n\n      card.innerHTML = '\n        <div class=\"qr-thumb\"><canvas id=\"thumb-${qr.slug}\"></canvas></div>\n        <div class=\"qr-info\">\n          <div class=\"qr-label\">${escHtml(qr.label || qr.slug)}</div>\n          <div class=\"qr-slug\" title=\"Copiar enlace\" onclick=\"copyText('${redirectUrl}')\">🔗 /r/${escHtml(qr.slug)}</div>\n          <div class=\"qr-url\" title=\"${escHtml(qr.url)}\">→ ${escHtml(qr.url)}</div>\n        </div>\n        <div class=\"qr-scans\">\n          <div class=\"qr-scans-num\">${qr.scans || 0}</div>\n          <div class=\"qr-scans-label\">escaneos</div>\n        </div>\n        <div class=\"qr-actions\">\n          <button class=\"btn btn-ghost btn-sm\" onclick=\"openQRModal('${qr.slug}', '${redirectUrl}')\">Ver QR</button>\n          <button class=\"btn btn-ghost btn-sm\" onclick=\"openEdit('${qr.slug}', '${escHtml(qr.url)}', '${escHtml(qr.label || '')}')\">Editar</button>\n          <button class=\"btn btn-danger btn-sm\" onclick=\"openDelete('${qr.slug}')\">Borrar</button>\n        </div>\n      ';\n      list.appendChild(card);\n\n      // Generate thumbnail QR\n      QRCode.toCanvas(document.getElementById('thumb-${qr.slug}'), redirectUrl, { width: 68, margin: 0, color: { dark: '#000', light: '#fff' } });\n    }\n  }\n\n  // ── CREATE QR ─────────────────────────────────────────────────────────────\n  async function createQR() {\n    const slug = document.getElementById('new-slug').value.trim();\n    const url = document.getElementById('new-url').value.trim();\n    const label = document.getElementById('new-label').value.trim();\n    if (!slug) { showToast('El slug es obligatorio', 'error'); return; }\n    if (!url || !url.startsWith('http')) { showToast('Introduce una URL válida', 'error'); return; }\n\n    const btn = document.getElementById('create-btn');\n    btn.classList.add('loading');\n    const res = await fetch('/api/qrs', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ slug, url, label }) });\n    const data = await res.json();\n    btn.classList.remove('loading');\n\n    if (res.ok) {\n      document.getElementById('new-slug').value = '';\n      document.getElementById('new-url').value = '';\n      document.getElementById('new-label').value = '';\n      showToast('¡QR creado!', 'success');\n      loadQRs();\n    } else {\n      showToast(data.error || 'Error al crear', 'error');\n    }\n  }\n\n  // ── EDIT ──────────────────────────────────────────────────────────────────\n  function openEdit(slug, url, label) {\n    editingSlug = slug;\n    document.getElementById('edit-modal-slug').textContent = '/r/${slug}';\n    document.getElementById('edit-url').value = url;\n    document.getElementById('edit-label').value = label;\n    openModal('modal-edit');\n  }\n\n  async function saveEdit() {\n    const btn = document.getElementById('save-btn');\n    btn.classList.add('loading');\n    const res = await fetch('/api/qrs/${editingSlug}', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ url: document.getElementById('edit-url').value, label: document.getElementById('edit-label').value }) });\n    btn.classList.remove('loading');\n    if (res.ok) { closeModal('modal-edit'); showToast('¡QR actualizado!', 'success'); loadQRs(); }\n    else { showToast('Error al guardar', 'error'); }\n  }\n\n  // ── DELETE ────────────────────────────────────────────────────────────────\n  function openDelete(slug) {\n    deletingSlug = slug;\n    document.getElementById('delete-modal-msg').textContent = '¿Eliminar el QR \"/r/${slug}\"? Esta acción no se puede deshacer.';\n    openModal('modal-delete');\n  }\n\n  async function confirmDelete() {\n    const btn = document.getElementById('delete-confirm-btn');\n    btn.classList.add('loading');\n    await fetch('/api/qrs/${deletingSlug}', { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });\n    btn.classList.remove('loading');\n    closeModal('modal-delete');\n    showToast('QR eliminado', 'success');\n    loadQRs();\n  }\n\n  // ── QR IMAGE MODAL ────────────────────────────────────────────────────────\n  function openQRModal(slug, url) {\n    document.getElementById('qr-modal-url').textContent = url;\n    document.getElementById('modal-qr').dataset.slug = slug;\n    document.getElementById('modal-qr').dataset.url = url;\n    const canvas = document.getElementById('modal-qr-canvas');\n    QRCode.toCanvas(canvas, url, { width: 280, margin: 2, color: { dark: '#000', light: '#fff' } });\n    openModal('modal-qr');\n  }\n\n  function downloadQR() {\n    const canvas = document.getElementById('modal-qr-canvas');\n    const slug = document.getElementById('modal-qr').dataset.slug;\n    const link = document.createElement('a');\n    link.download = 'qr-${slug}.png';\n    link.href = canvas.toDataURL('image/png');\n    link.click();\n  }\n\n  // ── HELPERS ───────────────────────────────────────────────────────────────\n  function openModal(id) { document.getElementById(id).classList.add('open'); }\n  function closeModal(id) { document.getElementById(id).classList.remove('open'); }\n\n  function copyText(text) {\n    navigator.clipboard.writeText(text).then(() => showToast('¡Enlace copiado!', 'success'));\n  }\n\n  function escHtml(str) {\n    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');\n  }\n\n  let toastTimer;\n  function showToast(msg, type = 'success') {\n    const t = document.getElementById('toast');\n    t.textContent = (type === 'success' ? '✓ ' : '✕ ') + msg;\n    t.className = 'toast ${type} show';\n    clearTimeout(toastTimer);\n    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);\n  }\n\n  // ── START ─────────────────────────────────────────────────────────────────\n  init();\n</script>\n</body>\n</html>\r\n";
 
 async function hashPassword(password) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, key, 256);
-  const toHex = (arr) => Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
-  return `${toHex(salt)}:${toHex(new Uint8Array(bits))}`;
+  var salt = crypto.getRandomValues(new Uint8Array(16));
+  var key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  var bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" }, key, 256);
+  function h(a){return Array.from(a).map(function(b){return b.toString(16).padStart(2,"0")}).join("")}
+  return h(salt)+":"+h(new Uint8Array(bits));
 }
-
-async function verifyPassword(password, stored) {
+async function verifyPassword(pw, stored) {
   try {
-    const [saltHex, hashHex] = stored.split(':');
-    const salt = new Uint8Array(saltHex.match(/.{2}/g).map(b => parseInt(b, 16)));
-    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, key, 256);
-    const testHex = Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
-    return testHex === hashHex;
-  } catch { return false; }
+    var p=stored.split(":"), salt=new Uint8Array(p[0].match(/.{2}/g).map(function(b){return parseInt(b,16)}));
+    var key=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveBits"]);
+    var bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt:salt,iterations:100000,hash:"SHA-256"},key,256);
+    return Array.from(new Uint8Array(bits)).map(function(b){return b.toString(16).padStart(2,"0")}).join("")===p[1];
+  }catch(e){return false;}
 }
-
-async function createToken(hashRef) {
-  const payload = `${Date.now()}`;
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(hashRef.slice(0, 32)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
-  return `${payload}.${Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+async function createToken(ref) {
+  var p=String(Date.now());
+  var key=await crypto.subtle.importKey("raw",new TextEncoder().encode(ref.slice(0,32)),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+  var sig=await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(p));
+  return p+"."+Array.from(new Uint8Array(sig)).map(function(b){return b.toString(16).padStart(2,"0")}).join("");
 }
-
-async function verifyToken(token, hashRef) {
+async function verifyToken(tok, ref) {
   try {
-    const [payload, sigHex] = token.split('.');
-    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(hashRef.slice(0, 32)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
-    const testHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-    return testHex === sigHex;
-  } catch { return false; }
+    var p=tok.split(".");
+    var key=await crypto.subtle.importKey("raw",new TextEncoder().encode(ref.slice(0,32)),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+    var sig=await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(p[0]));
+    return Array.from(new Uint8Array(sig)).map(function(b){return b.toString(16).padStart(2,"0")}).join("")===p[1];
+  }catch(e){return false;}
 }
-
-// ── MAIN HANDLER ──────────────────────────────────────────────────────────────
-
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
-    const path = url.pathname;
-
-    const cors = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    };
-
-    if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
-
-    const json = (data, status = 200) =>
-      new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
-
-    // ── Serve panel
-    if (path === '/' || path === '/admin' || path === '') {
-      return new Response(PANEL_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-    }
-
-    // ── QR Redirect
-    if (path.startsWith('/r/')) {
-      const slug = path.slice(3).replace(/\/$/, '');
-      if (!slug) return Response.redirect(url.origin, 302);
-      const data = await env.QR_KV.get(`qr:${slug}`, 'json');
-      if (!data?.url) return new Response('QR not found.', { status: 404 });
-      try {
-        await env.QR_KV.put(`qr:${slug}`, JSON.stringify({ ...data, scans: (data.scans || 0) + 1, lastScan: new Date().toISOString() }));
-      } catch (_) {}
-      return Response.redirect(data.url, 302);
-    }
-
-    // ── API: Setup check
-    if (path === '/api/setup' && request.method === 'POST') {
-      const body = await request.json();
-      if (body.__check) {
-        const exists = await env.QR_KV.get('config:password');
-        return json(exists ? { configured: true } : { notSetup: true });
+    var url=new URL(request.url), path=url.pathname;
+    var cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET,POST,PUT,DELETE,OPTIONS","Access-Control-Allow-Headers":"Content-Type,Authorization"};
+    function json(d,s){return new Response(JSON.stringify(d),{status:s||200,headers:Object.assign({},cors,{"Content-Type":"application/json"})})}
+    if(request.method==="OPTIONS")return new Response(null,{headers:cors});
+    if(path==="/"||path==="/admin"||path==="")return new Response(PANEL_HTML,{headers:{"Content-Type":"text/html; charset=utf-8"}});
+    if(!env.QR_KV)return json({error:"KV binding QR_KV not configured. Go to Worker Bindings and add KV namespace with variable name QR_KV."},500);
+    try {
+      if(path==="/api/setup"&&request.method==="POST"){
+        var body=await request.json();
+        if(body.__check){var e=await env.QR_KV.get("config:password");return json(e?{configured:true}:{notSetup:true});}
+        var ex=await env.QR_KV.get("config:password");
+        if(ex)return json({error:"Already configured."},403);
+        if(!body.password||body.password.length<6)return json({error:"Min 6 characters."},400);
+        await env.QR_KV.put("config:password",await hashPassword(body.password));
+        return json({ok:true});
       }
-      const existing = await env.QR_KV.get('config:password');
-      if (existing) return json({ error: 'Already configured.' }, 403);
-      if (!body.password || body.password.length < 6) return json({ error: 'Min 6 characters.' }, 400);
-      await env.QR_KV.put('config:password', await hashPassword(body.password));
-      return json({ ok: true });
-    }
-
-    // ── API: Login
-    if (path === '/api/login' && request.method === 'POST') {
-      const { password } = await request.json();
-      const stored = await env.QR_KV.get('config:password');
-      if (!stored) return json({ error: 'Not set up yet.' }, 400);
-      if (!await verifyPassword(password, stored)) return json({ error: 'Incorrect password.' }, 401);
-      return json({ token: await createToken(stored) });
-    }
-
-    // ── Auth gate
-    if (!path.startsWith('/api/')) return new Response('Not found', { status: 404 });
-
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-    const stored = await env.QR_KV.get('config:password');
-    if (!stored || !token || !await verifyToken(token, stored)) return json({ error: 'Unauthorized.' }, 401);
-
-    // ── API: List QRs
-    if (path === '/api/qrs' && request.method === 'GET') {
-      const list = await env.QR_KV.list({ prefix: 'qr:' });
-      const qrs = await Promise.all(list.keys.map(async k => {
-        const d = await env.QR_KV.get(k.name, 'json');
-        return d ? { slug: k.name.replace('qr:', ''), ...d } : null;
-      }));
-      return json(qrs.filter(Boolean));
-    }
-
-    // ── API: Create QR
-    if (path === '/api/qrs' && request.method === 'POST') {
-      const { slug, url: dest, label } = await request.json();
-      if (!slug || !dest) return json({ error: 'slug and url required.' }, 400);
-      const clean = slug.toLowerCase().replace(/[^a-z0-9\-_]/g, '');
-      if (!clean) return json({ error: 'Invalid slug.' }, 400);
-      if (await env.QR_KV.get(`qr:${clean}`)) return json({ error: 'Slug already in use.' }, 409);
-      const entry = { url: dest, label: label || clean, scans: 0, createdAt: new Date().toISOString(), lastScan: null };
-      await env.QR_KV.put(`qr:${clean}`, JSON.stringify(entry));
-      return json({ slug: clean, ...entry }, 201);
-    }
-
-    // ── API: Edit QR
-    if (path.startsWith('/api/qrs/') && request.method === 'PUT') {
-      const slug = path.slice(9);
-      const data = await env.QR_KV.get(`qr:${slug}`, 'json');
-      if (!data) return json({ error: 'QR not found.' }, 404);
-      const { url: dest, label } = await request.json();
-      const updated = { ...data, ...(dest && { url: dest }), ...(label && { label }), updatedAt: new Date().toISOString() };
-      await env.QR_KV.put(`qr:${slug}`, JSON.stringify(updated));
-      return json({ slug, ...updated });
-    }
-
-    // ── API: Delete QR
-    if (path.startsWith('/api/qrs/') && request.method === 'DELETE') {
-      await env.QR_KV.delete(`qr:${path.slice(9)}`);
-      return json({ ok: true });
-    }
-
-    return json({ error: 'Not found.' }, 404);
+      if(path==="/api/login"&&request.method==="POST"){
+        var body=await request.json();
+        var stored=await env.QR_KV.get("config:password");
+        if(!stored)return json({error:"Not set up yet."},400);
+        if(!await verifyPassword(body.password,stored))return json({error:"Incorrect password."},401);
+        return json({token:await createToken(stored)});
+      }
+      if(path.startsWith("/r/")){
+        var slug=path.slice(3).replace(//$/,"");
+        if(!slug)return Response.redirect(url.origin,302);
+        var data=await env.QR_KV.get("qr:"+slug,"json");
+        if(!data||!data.url)return new Response("QR not found.",{status:404});
+        try{await env.QR_KV.put("qr:"+slug,JSON.stringify(Object.assign({},data,{scans:(data.scans||0)+1,lastScan:new Date().toISOString()})));}catch(e){}
+        return Response.redirect(data.url,302);
+      }
+      var tok=(request.headers.get("Authorization")||"").replace("Bearer ","");
+      var stored=await env.QR_KV.get("config:password");
+      if(!stored||!tok||!await verifyToken(tok,stored))return json({error:"Unauthorized."},401);
+      if(path==="/api/qrs"&&request.method==="GET"){
+        var list=await env.QR_KV.list({prefix:"qr:"});
+        var qrs=await Promise.all(list.keys.map(async function(k){var d=await env.QR_KV.get(k.name,"json");return d?Object.assign({slug:k.name.replace("qr:","")},d):null;}));
+        return json(qrs.filter(Boolean));
+      }
+      if(path==="/api/qrs"&&request.method==="POST"){
+        var body=await request.json();
+        if(!body.slug||!body.url)return json({error:"slug and url required."},400);
+        var clean=body.slug.toLowerCase().replace(/[^a-z0-9-_]/g,"");
+        if(!clean)return json({error:"Invalid slug."},400);
+        if(await env.QR_KV.get("qr:"+clean))return json({error:"Slug already in use."},409);
+        var entry={url:body.url,label:body.label||clean,scans:0,createdAt:new Date().toISOString(),lastScan:null};
+        await env.QR_KV.put("qr:"+clean,JSON.stringify(entry));
+        return json(Object.assign({slug:clean},entry),201);
+      }
+      if(path.startsWith("/api/qrs/")&&request.method==="PUT"){
+        var slug=path.slice(9);
+        var data=await env.QR_KV.get("qr:"+slug,"json");
+        if(!data)return json({error:"QR not found."},404);
+        var body=await request.json();
+        var upd=Object.assign({},data,body.url?{url:body.url}:{},body.label?{label:body.label}:{},{updatedAt:new Date().toISOString()});
+        await env.QR_KV.put("qr:"+slug,JSON.stringify(upd));
+        return json(Object.assign({slug:slug},upd));
+      }
+      if(path.startsWith("/api/qrs/")&&request.method==="DELETE"){
+        await env.QR_KV.delete("qr:"+path.slice(9));
+        return json({ok:true});
+      }
+      return json({error:"Not found."},404);
+    }catch(err){return json({error:"Worker error: "+err.message},500);}
   }
 };
-
