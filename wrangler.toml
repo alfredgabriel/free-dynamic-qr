@@ -1,7 +1,0 @@
-﻿name = "free-dynamic-qr"
-compatibility_date = "2024-01-01"
-pages_build_output_dir = "public"
-
-[[kv_namespaces]]
-binding = "QR_KV"
-id = "REEMPLAZAR_CON_TU_KV_ID"

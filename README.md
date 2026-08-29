@@ -1,109 +1,51 @@
-﻿<div align="center">
+﻿# Free Dynamic QR
 
-# free-dynamic-qr
+Un acortador de URLs y generador de códigos QR dinámicos **100% gratuito** auto-alojado en tu propia cuenta de Cloudflare (usando Cloudflare Workers). 
+Sin suscripciones, sin límites y gestionado desde un panel web elegante.
 
-**Codigos QR dinamicos gratuitos y autoalojados en Cloudflare**
+## Guía de Instalación Paso a Paso
 
-*Olvida pagar $30/mes a QR Tiger o Bitly. 100% gratis para siempre.*
+Sigue esta guía visual para configurar tu propio generador de QR dinámicos en menos de 5 minutos. **No se requieren conocimientos técnicos.**
 
-</div>
+### Paso 1: Crear cuenta en Cloudflare
+Lo primero que hay que hacer es entrar en Cloudflare y registrarse con una cuenta nueva en: [dash.cloudflare.com/login](https://dash.cloudflare.com/login)
+![Paso 0 - Registro](Captura0.png)
 
----
+### Paso 2: Crear la Base de Datos (KV)
+Una vez logeado, dirígete al apartado **Workers KV** (dentro de *Storage and databases*) y haz clic en **Create a namespace**.
+![Paso 1 - Crear KV](Captura1.png)
 
-## Que es esto?
+Una vez creado, en el apartado de métricas podrás ver el nombre que le hemos puesto y el ID asignado. Tenlo en cuenta para un paso futuro.
+![Paso 2 - Detalles del KV](Captura2.png)
 
-Un QR dinamico te permite **cambiar el destino de un QR ya impreso** sin reimprimir nada.
+### Paso 3: Crear la Aplicación (Worker)
+Ahora entra a **Workers & Pages** (en el apartado de *Compute*) y pulsa en **Create application**.
+![Paso 3 - Crear aplicación](Captura3.png)
 
-Este proyecto te da exactamente eso, **gratis**, con solo hacer copy/paste en Cloudflare.
+La aplicación debe ser del tipo **Start with Hello World!** como marca la flecha.
+![Paso 4 - Hello World](Captura4.png)
 
-- Sin GitHub. Sin terminal. Sin instalaciones.
-- Panel web para crear, editar y borrar QRs.
-- Contador de escaneos por QR.
-- Descarga el QR en PNG listo para imprimir.
-- Protegido por contrasena (solo tu gestionas tus QRs).
+### Paso 4: Añadir el Código
+Una vez creado, en el apartado Overview tenemos que editar el código pulsando el botón **Edit code** que indica la flecha.
+![Paso 5 - Editar código](Captura5.png)
 
----
+En este paso hay que entrar en el repositorio [github.com/alfredgabriel/free-dynamic-qr](https://github.com/alfredgabriel/free-dynamic-qr), copiar todo el contenido del archivo worker.js y pegarlo donde antes estaba el código de Hello World. Por último, pulsa el botón de **Deploy**.
+![Paso 6 - Pegar código y Deploy](Captura6.png)
 
-## Deploy en 3 pasos
+### Paso 5: Conectar la Base de Datos al Código
+Ahora hay que salir del editor de código y entrar en la pestaña **Settings > Bindings** y añadir un nuevo binding del tipo **KV namespace**.
+![Paso 7 - Añadir Binding](Captura7.png)
 
-### Paso 1 — Crear el KV (base de datos gratuita)
+Para crear el binding, nos pedirá un nombre de variable: **tienes que poner obligatoriamente QR_KV**. En el desplegable, selecciona el namespace que creaste en el paso 2. Pulsa en Deploy/Guardar.
+![Paso 8 - Configurar Variable QR_KV](Captura8.png)
 
-1. Ve a [dash.cloudflare.com](https://dash.cloudflare.com) (crea cuenta gratis si no tienes)
-2. Menu izquierdo: **Storage & databases > Workers KV**
-3. Clic en **Create namespace**
-4. Name: `QR_KV` → clic **Add**
+### Paso 6: Configurar tu Contraseña
+Ahora hay que volver al *Overview* y pulsar el botón **Visit** para abrir tu aplicación. 
+Al entrar por primera vez nos pedirá crear una contraseña, la cual nos pedirá en las próximas visitas para poder entrar a configurar los códigos QR.
+![Paso 9 - Crear contraseña](Captura9.png)
 
----
+### Paso 7: Crear y Gestionar tus QR
+¡Listo! Para añadir un código QR necesitaremos añadir un **Slug** (que es el texto que se usará en la URL corta), la **URL de destino** y un **Nombre** (opcional). 
 
-### Paso 2 — Crear el Worker y pegar el codigo
-
-1. Menu izquierdo: **Compute > Workers & Pages**
-2. Clic en **Create** → **Create Worker**
-3. Ponle un nombre (ej: `my-qr`) → clic **Deploy**
-4. Clic en **Edit code**
-5. **Borra todo el codigo** que aparece por defecto
-6. Abre el archivo `worker.js` de este repositorio, **copia todo el contenido** y pegalo en el editor
-7. Clic en **Deploy**
-
----
-
-### Paso 3 — Conectar el KV al Worker
-
-1. Ve a tu Worker → pestaña **Settings** → seccion **Bindings**
-2. Clic en **Add** → **KV namespace**
-3. Variable name: `QR_KV`
-4. Selecciona el namespace `QR_KV` que creaste en el Paso 1
-5. Clic en **Save**
-
-Listo. Abre la URL de tu Worker (algo como `my-qr.workers.dev`), crea tu contrasena y empieza a crear QRs.
-
----
-
-## Como usar el panel
-
-### Crear un QR
-1. Slug: identificador corto, ej: `portfolio`
-2. URL de destino: `https://alfredgabriel.com`
-3. Nombre: opcional
-4. Clic en **Crear QR**
-
-El QR imprime la URL: `my-qr.workers.dev/r/portfolio`
-
-### Cambiar el destino
-1. Clic en **Editar** en el QR que quieres cambiar
-2. Escribe la nueva URL
-3. Clic en **Guardar**
-
-El QR fisico no cambia. Solo cambia a donde lleva.
-
-### Descargar el QR para imprimir
-1. Clic en **Ver QR**
-2. Clic en **Descargar PNG**
-
----
-
-## Limites gratuitos de Cloudflare
-
-| Recurso | Limite gratis |
-|---|---|
-| Workers requests | 100.000/dia |
-| KV reads | 100.000/dia |
-| KV writes | 1.000/dia |
-| Espacio KV | 1 GB |
-
-Mas que suficiente para uso personal o pequeno negocio.
-
----
-
-## Dominio propio (opcional)
-
-Si tienes un dominio (ej: `miempresa.com`), puedes conectarlo en:
-Workers > tu worker > **Settings** > **Domains & Routes** > **Add**
-
-Los QRs pasaran a usar `miempresa.com/r/slug`.
-
----
-
-## Licencia
-
-MIT
+Una vez creado, los códigos QR aparecerán en la lista de abajo. Podrás editarles la URL de destino o el nombre en el futuro si lo necesitas, **¡sin que el QR cambie!**
+![Paso 10 - Panel de control](Captura10.png)
